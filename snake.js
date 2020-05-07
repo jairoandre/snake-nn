@@ -1,3 +1,20 @@
+const DIRECTIONS = [
+  _xy(1, 0), // RIGHT
+  _xy(1, -1), // RIGHT_UP
+  _xy(0, -1), // UP
+  _xy(-1, -1), // LEFT_UP
+  _xy(-1, 0), // LEFT
+  _xy(-1, 1), // LEFT_DOWN
+  _xy(0, 1), // DOWN
+  _xy(1, 1), // DOWN_RIGHT
+];
+
+function _xy(x, y) {
+  return  {
+    x: x,
+    y: y
+  }
+}
 class Snake {
   constructor(w, h, s, brain) {
     this.w = w;
@@ -5,34 +22,37 @@ class Snake {
     this.s = s;
     this.x = this.randomX();
     this.y = this.randomY();
+    this.initialPos = createVector(this.x, this.y);
     this.xdir = 0;
     this.ydir = 0;
     this.xlimit = (w / s) - 1;
     this.ylimit = (h / s) - 1;
     this.tail = [];
     this.dead = false;
-    this.createFood();
     this.brain = brain ? brain : new NeuralNetwork(24, 18, 2, 4);
     this.moves = 250;
     this.score = 0;
     this.lifetime = 0;
     this.vision = new Array(24).fill(0);
-    this.directions = [
-      createVector(1,0),
-      createVector(1,1),
-      createVector(0,1),
-      createVector(-1,1),
-      createVector(-1,0),
-      createVector(-1,-1),
-      createVector(0,-1),
-      createVector(1,-1)
-      ];
+    this.replay = false;
+    this.foods = [];
+    this.createFood();
   }
   
   clone() {
     //let c = new Snake(this.w, this.h, this.s, this.brain.clone());
     let c = new Snake(this.w, this.h, this.s, this.brain.clone());
     c.brain.mutate(0.05);
+    return c;
+  }
+
+  cloneForReplay() {
+    let c = new Snake(this.w, this.h, this.s, this.brain.clone());
+    c.x = this.initialPos.x;
+    c.y = this.initialPos.y;
+    c.replay = true;
+    c.foods = this.foods;
+    c.food = this.foods.shift();
     return c;
   }
   
@@ -43,7 +63,7 @@ class Snake {
     this.vision = new Array(24).fill(0);
     for (let i = 0; i < 8; i++) {
      let visionIdx = i * 3;
-     let dir = this.directions[i];
+     let dir = createVector(DIRECTIONS[i].x, DIRECTIONS[i].y);
      let pos = createVector(this.x, this.y);
      let dist = 0;
      pos = pos.add(dir);
@@ -67,9 +87,7 @@ class Snake {
   
   think() {
     this.fillVision();
-    print(this.vision);
     let outputs = this.brain.output(this.vision);
-    print(outputs);
     let record = 0;
     let idx = 0;
     for (let i = 0; i < outputs.length; i++) {
@@ -98,9 +116,13 @@ class Snake {
   }
 
   createFood() {
+    if (this.replay) {
+      return;
+    }
     let x = this.randomX();
     let y = this.randomY();
     this.food = createVector(x, y);
+    this.foods.push(this.food);
   }
   
   checkPtCollision(pt1, pt2) {
@@ -189,7 +211,11 @@ class Snake {
   
   eat() {
     if (this.x === this.food.x && this.y === this.food.y) {
-      this.createFood();
+      if (this.replay) {
+        this.food = this.foods.shift();
+      } else {
+        this.createFood();
+      }
       this.tail.push(createVector(this.x, this.y));
       this.moves += 100;      
       this.score++;

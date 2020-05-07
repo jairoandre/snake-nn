@@ -9,6 +9,8 @@ let lastUpdate;
 let dirCommitted = true;
 let velocitySlider;
 let populationSlider;
+let sketchBestSnake;
+let totalFitness;
 
 function newGame() {
   snake = new Snake(width, height, gridSize);
@@ -64,7 +66,10 @@ function drawGame() {
   background(50);
   noStroke();
   //snake.draw();  
-  snakes.forEach((s) => s.draw());
+  if (sketchBestSnake) {
+    sketchBestSnake.draw();
+  }
+  //snakes.forEach((s) => s.draw());
   textSize(10);
   textAlign(LEFT);
   fill(0, 255, 0);
@@ -90,7 +95,33 @@ function drawGame() {
   let delta = currentTime - lastUpdate;
   let deltaSpeed = (1 / velocitySlider.value()) * 1000;
   if (delta > deltaSpeed) {
-    readBuffer();
+    //readBuffer();
+
+    if (sketchBestSnake && !sketchBestSnake.dead) {
+      sketchBestSnake.think();
+      sketchBestSnake.update();
+    }
+    //snake.think();
+    //snake.update();
+    //dirCommitted = true;
+    lastUpdate = currentTime;
+  }
+
+  if (snakes.length === 0) {
+    if (!sketchBestSnake) {
+      totalFitness = calcSnakesFitness(savedSnakes);
+    } else if (sketchBestSnake && sketchBestSnake.dead) {
+      snakes = nextGeneration(savedSnakes, totalFitness);
+      savedSnakes = [];
+      generations++;
+      sketchBestSnake = null;
+    }
+  } else {
+
+    textSize(15);
+    fill(255,0,0);
+    textAlign(CENTER);
+    text('RUNNING SIMULATION', width/2, height/2);
     snakes.forEach((s) => {
       s.think();
       s.update();
@@ -98,16 +129,7 @@ function drawGame() {
         savedSnakes.push(s);
       }
     });
-    //snake.think();
-    //snake.update();
-    dirCommitted = true;
-    lastUpdate = currentTime;
-  }
-  snakes = snakes.filter((s) => !s.dead);
-  if (snakes.length === 0) {
-    snakes = nextGeneration(savedSnakes);
-    savedSnakes = [];
-    generations++;
+    snakes = snakes.filter((s) => !s.dead);
   }
   
 }
@@ -115,8 +137,8 @@ function drawGame() {
 function setup() {
   createCanvas(gameSize, gameSize);
   //newGame();
-  velocitySlider = createSlider(0, 300, 100);
-  populationSlider = createSlider(0, 2000, 200);
+  velocitySlider = createSlider(0, 300, 50);
+  populationSlider = createSlider(0, 2000, 2000);
   snakes = new Array(populationSlider.value()).fill().map(() => new Snake(width, height, gridSize));
   lastUpdate = millis();
 }
