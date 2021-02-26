@@ -63,9 +63,8 @@ function toP5jsX(codingameX) {
 }
 
 function toP5jsY(codingameY) {
-  let yscl = codingameY * scl;
-  let yinv = map(yscl, 0, hscl, hscl, 0);
-  return yinv;
+  let yscl = hscl - codingameY * scl;
+  return yscl;
 }
 
 function createPtFromLine(line) {
@@ -75,9 +74,7 @@ function createPtFromLine(line) {
 
 function createVecFromLine(line) {
   const xy = line.split` `.map((v) => parseInt(v));
-  let x = xy[0] * scl;
-  let y = hscl - xy[1] * scl;
-  return vec(x, y);
+  return vec(xy[0], xy[1]);
 }
 
 /** global variables **/
@@ -87,11 +84,11 @@ let surfacePts;
 function prepareGame() {
   surfaceN = parseInt(readline());
   let n = surfaceN;
-  surfacePts = [vec(0, hscl)];
+  surfacePts = [vec(0, 0)];
   while (n--) {
     surfacePts.push(createVecFromLine(readline()));
   }
-  surfacePts.push(vec(wscl, hscl));
+  surfacePts.push(vec(w, 0));
   //surfacePts = new Array(surfaceN).fill().map(() => createPtFromLine(readline()).toVector());
 }
 
@@ -107,9 +104,9 @@ class Ship {
     this.tick += 1;
     let v = vec(this.vel.x * 1/60, this.vel.y * 1/60);
     this.pos = p5.Vector.add(this.pos, this.vel);
-    if (this.pos.x > wscl || this.pos.x < 0 || this.pos.y > hscl || this.pos.y < 0) {
-      this.pos = createVecFromLine("6000 2000");
-      this.vel = vec(random(-2, 2), random(-2, 2));
+    if (this.pos.x > w || this.pos.x < 0 || this.pos.y > h || this.pos.y < 0) {
+      this.pos = createVecFromLine("6500 2600");
+      this.vel = vec(random(1, -10), random(5));
       this.count = 0;
     }
 
@@ -119,11 +116,12 @@ class Ship {
   }
 
   draw() {
-    text(`Horizontal velocity: ${this.vel.x / scl}`, 10, 20);
-    text(`Vertical velocity: ${this.vel.y / scl}`, 10, 40);
-    text(`Position: (${this.pos.x / scl}, ${this.pos.y / scl})`, 10, 60);
+    text(`Horizontal velocity: ${this.vel.x}`, 10, 20);
+    text(`Vertical velocity: ${round(this.vel.y)}`, 10, 40);
+    text(`Position: (${round(this.pos.x)}, ${round(this.pos.y)})`, 10, 60);
     text(`Count: ${this.count}`, 10, 80);
-    circle(this.pos.x, this.pos.y, 10);
+    stroke(255, 255, 255);
+    circle(toP5jsX(this.pos.x), toP5jsY(this.pos.y), 10);
   }
 
   applyForce(force) {
@@ -136,21 +134,21 @@ let ship;
 let gravity;
 let initialPos;
 
+function drawSurface() {
+  noFill();
+  stroke(255, 0, 0);
+  beginShape();
+  surfacePts.forEach((v) => vertex(toP5jsX(v.x), toP5jsY(v.y)));
+  endShape();
+}
+
 function setup() {
   createCanvas(wscl, hscl);
   prepareGame();
   frameRate(60);
   let initialPos = createVecFromLine("6000 2000");
   ship = new Ship(initialPos);
-  gravity = vec(0, 3.711 * scl);
-}
-
-function drawSurface() {
-  noFill();
-  stroke(255, 0, 0);
-  beginShape();
-  surfacePts.forEach((v) => vertex(v.x, v.y));
-  endShape();
+  gravity = vec(0, -3.711);
 }
 
 function draw() {
