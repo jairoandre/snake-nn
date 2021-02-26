@@ -1,149 +1,162 @@
-const gridSize = 20;
-const gameSize = 600;
-const population = 1;
+/** global constants **/
+const w = 7000;
+const h = 3000;
+const scl = 0.2;
+const wscl = w * scl;
+const hscl = h * scl;
 
-
-let snake;
-let snakes;
-let lastUpdate;
-let dirCommitted = true;
-let velocitySlider;
-let populationSlider;
-let sketchBestSnake;
-let totalFitness;
-
-function newGame() {
-  snake = new Snake(width, height, gridSize);
-  dirCommitted = true;
+function* test1() {
+  yield "22";
+  yield "0 450";
+  yield "300 750";
+  yield "1000 450";
+  yield "1500 650";
+  yield "1800 850";
+  yield "2000 1950";
+  yield "2200 1850";
+  yield "2400 2000";
+  yield "3100 1800";
+  yield "3150 1550";
+  yield "2500 1600";
+  yield "2200 1550";
+  yield "2100 750";
+  yield "2200 150";
+  yield "3200 150";
+  yield "3500 450";
+  yield "4000 950";
+  yield "4500 1450";
+  yield "5000 1550";
+  yield "5500 1500";
+  yield "6000 950";
+  yield "6999 1750";
+  yield "6500 2600 -20  0 1000 45 0";
 }
 
+const test1Gen = test1();
 
-let inputBuffer = [];
+function readline() {
+  const r = test1Gen.next();
+  if (r.done) return gameState();
+  else return r.value;
+}
 
+function gameState() {
+  return "end";
+}
 
-function processKey(key) {
-  if (!dirCommitted) {
-    inputBuffer.push(key);
+class Point {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
   }
-  if (dirCommitted && key === UP_ARROW && snake.ydir === 0) {
-    snake.setDirection(0, -1);
-    dirCommitted = false;
-  } else if (dirCommitted && key === DOWN_ARROW && snake.ydir === 0) {
-    snake.setDirection(0, 1);
-    dirCommitted = false;
-  } else if (dirCommitted && key === RIGHT_ARROW && snake.xdir === 0) {
-    snake.setDirection(1, 0);
-    dirCommitted = false;
-  } else if (dirCommitted && key === LEFT_ARROW && snake.xdir === 0) {
-    snake.setDirection(-1, 0);
-    dirCommitted = false;
-  } else if (key === 82) {
-    newGame();
+  toVector() {
+    return vec(toP5jsX(this.x), toP5jsY(this.y));
   }
 }
 
-function readBuffer() {
-  if (inputBuffer.length > 0) {
-    let key = inputBuffer.shift();
-    processKey(key);
-  }  
+function vec(x, y) {
+  return createVector(x, y);
 }
 
+function toP5jsX(codingameX) {
+  return codingameX * scl;
+}
 
-// function keyPressed() {
-//   print(keyCode);
-//   //processKey(keyCode);
-// }
+function toP5jsY(codingameY) {
+  let yscl = codingameY * scl;
+  let yinv = map(yscl, 0, hscl, hscl, 0);
+  return yinv;
+}
 
-let savedSnakes = [];
+function createPtFromLine(line) {
+  const xy = line.split` `.map((v) => parseInt(v));
+  return new Point(xy[0], xy[1]);
+}
 
-let generations = 1;
+function createVecFromLine(line) {
+  const xy = line.split` `.map((v) => parseInt(v));
+  let x = xy[0] * scl;
+  let y = hscl - xy[1] * scl;
+  return vec(x, y);
+}
 
-let RECORD = 0;
-let CURRENT_RECORD = 0;
+/** global variables **/
+let surfaceN;
+let surfacePts;
 
-function drawGame() {
-  background(50);
-  noStroke();
-  //snake.draw();  
-  if (sketchBestSnake) {
-    sketchBestSnake.draw();
+function prepareGame() {
+  surfaceN = parseInt(readline());
+  let n = surfaceN;
+  surfacePts = [vec(0, hscl)];
+  while (n--) {
+    surfacePts.push(createVecFromLine(readline()));
   }
-  //snakes.forEach((s) => s.draw());
-  textSize(10);
-  textAlign(LEFT);
-  fill(0, 255, 0);
-  text("GENERATION: " + generations, 10, 10);
-  text("RECORD: " + RECORD, 10, 25);
-  text("CURRENT: " + CURRENT_RECORD, 10, 40);
-  text("POPULATION SIZE: " + populationSlider.value(), 10, 55);
-  text("VELOCITY: " + velocitySlider.value(), 10, 70);
+  surfacePts.push(vec(wscl, hscl));
+  //surfacePts = new Array(surfaceN).fill().map(() => createPtFromLine(readline()).toVector());
+}
 
-  
-  // if (snake.dead) {
-  //   textSize(15);
-  //   fill(255,0,0);
-  //   textAlign(CENTER);
-  //   text('GAME OVER', width/2, height/2);
-  //   textSize(15);
-  //   text('PRESS "R" TO RESET', width/2, height/2 + 32);
-  //   newGame();
-  //   return;
-  // }
-  
-  let currentTime = millis();
-  let delta = currentTime - lastUpdate;
-  let deltaSpeed = (1 / velocitySlider.value()) * 1000;
-  if (delta > deltaSpeed) {
-    //readBuffer();
+class Ship {
+  constructor(pos, vel) {
+    this.pos = pos ? pos : vec(0, 0);
+    this.vel = vel ? vel : vec(random(10), random(10));
+    this.count = 0;
+    this.tick = 0;
+  }
 
-    if (sketchBestSnake && !sketchBestSnake.dead) {
-      sketchBestSnake.think();
-      sketchBestSnake.update();
+  update() {
+    this.tick += 1;
+    let v = vec(this.vel.x * 1/60, this.vel.y * 1/60);
+    this.pos = p5.Vector.add(this.pos, this.vel);
+    if (this.pos.x > wscl || this.pos.x < 0 || this.pos.y > hscl || this.pos.y < 0) {
+      this.pos = createVecFromLine("6000 2000");
+      this.vel = vec(random(-2, 2), random(-2, 2));
+      this.count = 0;
     }
-    //snake.think();
-    //snake.update();
-    //dirCommitted = true;
-    lastUpdate = currentTime;
-  }
 
-  if (snakes.length === 0) {
-    if (!sketchBestSnake) {
-      totalFitness = calcSnakesFitness(savedSnakes);
-    } else if (sketchBestSnake && sketchBestSnake.dead) {
-      snakes = nextGeneration(savedSnakes, totalFitness);
-      savedSnakes = [];
-      generations++;
-      sketchBestSnake = null;
+    if (this.tick % 60 === 0) {
+      this.count += 1;
     }
-  } else {
-
-    textSize(15);
-    fill(255,0,0);
-    textAlign(CENTER);
-    text('RUNNING SIMULATION', width/2, height/2);
-    snakes.forEach((s) => {
-      s.think();
-      s.update();
-      if (s.dead) {
-        savedSnakes.push(s);
-      }
-    });
-    snakes = snakes.filter((s) => !s.dead);
   }
-  
+
+  draw() {
+    text(`Horizontal velocity: ${this.vel.x / scl}`, 10, 20);
+    text(`Vertical velocity: ${this.vel.y / scl}`, 10, 40);
+    text(`Position: (${this.pos.x / scl}, ${this.pos.y / scl})`, 10, 60);
+    text(`Count: ${this.count}`, 10, 80);
+    circle(this.pos.x, this.pos.y, 10);
+  }
+
+  applyForce(force) {
+    let f = vec(force.x * 1/60, force.y * 1/60)
+    this.vel = p5.Vector.add(this.vel, f);
+  }
 }
+
+let ship;
+let gravity;
+let initialPos;
 
 function setup() {
-  createCanvas(gameSize, gameSize);
-  //newGame();
-  velocitySlider = createSlider(0, 300, 50);
-  populationSlider = createSlider(0, 2000, 2000);
-  snakes = new Array(populationSlider.value()).fill().map(() => new Snake(width, height, gridSize));
-  lastUpdate = millis();
+  createCanvas(wscl, hscl);
+  prepareGame();
+  frameRate(60);
+  let initialPos = createVecFromLine("6000 2000");
+  ship = new Ship(initialPos);
+  gravity = vec(0, 3.711 * scl);
 }
 
+function drawSurface() {
+  noFill();
+  stroke(255, 0, 0);
+  beginShape();
+  surfacePts.forEach((v) => vertex(v.x, v.y));
+  endShape();
+}
 
 function draw() {
-  drawGame();
+  background(0);
+  drawSurface();
+  ship.applyForce(gravity);
+  ship.update();
+  ship.draw();
 }
