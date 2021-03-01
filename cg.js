@@ -22,10 +22,34 @@ function* test1() {
   yield "5500 1500";
   yield "6000 950";
   yield "6999 1750";
-  yield "6500 2600 -20  0 1000 45 0";
+  yield "6500 2600 -20 0 1000 45 0";
+}
+
+function* test2() {
+  yield "18"
+  yield "0 1800"
+  yield "300 1200"
+  yield "1000 1550"
+  yield "2000 1200"
+  yield "2500 1650"
+  yield "3700 220"
+  yield "4700 220"
+  yield "4750 1000"
+  yield "4700 1650"
+  yield "4000 1700"
+  yield "3700 1600"
+  yield "3750 1900"
+  yield "4000 2100"
+  yield "4900 2050"
+  yield "5100 1000"
+  yield "5500 500"
+  yield "6200 800"
+  yield "6999 600"
+  yield "6500 2600 0 0 1200 0 0";
 }
 
 const test1Gen = test1();
+//const test1Gen = test2();
 
 function readline() {
   const r = test1Gen.next();
@@ -89,7 +113,7 @@ function distToPlane(p0, line) {
   if (p0.x > p2.x) {
     dx = p2.x - p0.x;
   }
-  return (dx * dx) + (dy * dy);
+  return Math.sqrt((dx * dx) + (dy * dy));
 }
 
 function randomThrust(pa) {

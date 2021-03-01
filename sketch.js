@@ -72,13 +72,18 @@ function setup() {
   prepareGame();
   planeSegment = getPlaneSegment(surfacePts);
   //frameRate(60);
-  let initialPos = createVecFromLine("6500 2600");
-  let vel = createVecFromLine("-20 0");
+  let shipLine = readline();
+  let shipValues = shipLine.split` `.map((v) => parseInt(v));
+  let initialPos = vec(shipValues[0], shipValues[1]);
+  let vel = vec(shipValues[2], shipValues[3]);
+  let fuel = shipValues[4];
+  let rotate = shipValues[5];
+  let power = shipValues[6];
   let shipsCount = shipsN;
   ships = [];
   thrusts = [];
   while(shipsCount--) {
-    let ship = new Ship(initialPos, vel, 1000, 45, 0, timeFactor);
+    let ship = new Ship(initialPos, vel, fuel, rotate, power, timeFactor);
     ships.push(ship);
     thrusts.push(randomThrusts(thrustsN));
   }
@@ -93,10 +98,6 @@ function draw() {
   if (turn >= thrustsN || checkAllDead()) {
     let ga = new GA(ships, thrusts, planeSegment);
     ga.evaluate();
-    if (ga.resolved) {
-      noLoop();
-      console.log(ga.best);
-    }
     thrusts = ga.nextPopulation();
     let n = ships.length;
     while (n--) {

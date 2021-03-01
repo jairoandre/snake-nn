@@ -16,9 +16,9 @@ class GA {
 
     for (let i = 0; i < shipLen; i++) {
       let ship = this.ships[i];
-      let dist = distToPlane(ship.pos, this.planeSegment) * 0.1;
+      let dist = distToPlane(ship.pos, this.planeSegment);
       let fitness = 10000 / (1 + dist);
-      if (dist <= 160) {
+      if (dist <= 40) {
         let absRotate = Math.abs(round(ship.rotate));
         let absVx = Math.abs(ship.vel.x);
         let absVy = Math.abs(ship.vel.y);
