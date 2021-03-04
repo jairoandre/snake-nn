@@ -1,16 +1,15 @@
 class Ship {
-  constructor(pos, vel, fuel, r, power, timeFactor) {
+  constructor(pos, vel, fuel, r, power, timeFactor, gravity) {
     this.pos = {x: pos.x, y: pos.y};
     this.vel = {x: vel.x, y: vel.y};
+    this.pVel = { x: vel.x, y: vel.y };
     this.fuel = fuel;
     this.rotate = r;
-    this._rotate = r;
     this.power = power;
-    this._power = power;
-    this.turn = 0;
     this.crashed = false;
+    this.gravity = gravity ? gravity : { x: 0, y: -3.711 };
     this.timeFactor = timeFactor ? timeFactor : 1;
-    this.timeConst = 60;
+    this.trajectory = [this.copyVec(this.pos)];
     this.initial = {
       pos,
       vel,
@@ -27,40 +26,68 @@ class Ship {
   reset() {
     this.pos = this.copyVec(this.initial.pos);
     this.vel = this.copyVec(this.initial.vel);
+    this.pVel = this.copyVec(this.initial.vel);
     this.fuel = this.initial.fuel;
     this.rotate = this.initial.r;
     this.power = this.initial.power;
-    this._rotate = this.rotate;
-    this._power = this.power;
     this.crashed = false;
-    this.turn = 0;
+    this.trajectory = [this.copyVec(this.pos)];
   }
 
-  checkLanded() {}
 
-  update(tick, cmd) {
-    if (this.crashed) return;
-    if (tick % this.timeConst === 0) {
-      this.turn += 1;
-      this.rotate = Math.round(this.rotate);
-      this.power = Math.round(this.power);
-      this._rotate = this.rotate;
-      this._power = this.power;
+  fillTrajectory(cmds) {
+    this.cmds = [];
+    for (let i = 0; i < cmds.length; i++) {
+      let cmd = cmds[i];
+      this.executeCmd(cmd);
+    }
+  }
+
+  executeCmd(cmd) {
+      if (this.crashed) return;
+      //this.applyForce(this.gravity);
+      this.applyCmd(cmd);
+      this.update();
+      this.trajectory.push(this.copyVec(this.pos));
+  }
+
+  updateStatus(vertices) {
+    this.crashed = checkInside(this.pos, vertices);
+  }
+
+  update() {
+      this.pos.x += 0.5 * (this.vel.x + this.pVel.x);
+      this.pos.y += 0.5 * (this.vel.y + this.pVel.y);
       this.fuel -= this.power;
-      this.pos.x = Math.round(this.pos.x);
-      this.pos.y = Math.round(this.pos.y);
-      this.vel.x = Math.round(this.vel.x);
-      this.vel.y = Math.round(this.vel.y);
-    }
-    this.applyCmd(cmd);
-    let vx = this.vel.x * timeFactor;
-    let vy = this.vel.y * timeFactor;
-    this.pos.x += vx;
-    this.pos.y += vy;
-    let crash = checkInside(this.pos, surfacePts);
-    if (crash) {
-      this.crashed = true;
-    }
+  }
+
+  applyForce(force) {
+    let fx = force.x;
+    let fy = force.y;
+    let px = this.vel.x;
+    let py = this.vel.y;
+    this.pVel = { x: px, y: py };
+    this.vel.x = px + fx;
+    this.vel.y = py + fy;
+  }
+
+  applyCmd(cmd) {
+    let r = cmd[0];
+    let p = cmd[1];
+
+    // Compress the values (to maximum changes per turn)
+    let dA = Math.min(Math.abs(this.rotate - r), 15);
+    let signedDA = dA * (r > this.rotate ? 1 : -1);
+    let dP = Math.min(Math.abs(this.power - p), 1);
+    let signedDP = dP * (p >= this.power ? 1 : -1);
+
+    this.rotate += signedDA;
+    this.power += signedDP;
+
+    let radiansRotate = this.rotate * Math.PI/180;
+    let _x = -this.power * Math.sin(radiansRotate); // 0 degree on the ship is to up
+    let _y = this.power * Math.cos(radiansRotate);
+    this.applyForce({ x: _x, y: _y - 3.711 });
   }
 
   draw(log) {
@@ -84,30 +111,13 @@ class Ship {
     rotate(radians(_rotate));
     line(0, 0, 0, 0 - 10);
     pop();
+    stroke(0, 255, 0);
+    //for (let i = 0; i < this.trajectory.length; i++) {
+    //  let pt = this.trajectory[i];
+    //  let xt = toP5jsX(pt.x);
+    //  let yt = toP5jsY(pt.y);
+    //  point(xt, yt);
+    //}
   }
 
-  applyForce(force) {
-    if (this.crashed) return;
-    let fx = force.x * this.timeFactor;
-    let fy = force.y * this.timeFactor;
-    this.vel.x += fx;
-    this.vel.y += fy;
-  }
-
-  applyCmd(cmd) {
-    let r = cmd[0];
-    let p = cmd[1];
-    let dA = Math.min(Math.abs(r - this._rotate), 15);
-    let signedDA = dA * (r > this._rotate ? 1 : -1);
-    let dP = Math.min(Math.abs(p - this._power), 1);
-    let signedDP = dP * (p >= this._power ? 1 : -1);
-    let tickCmd = [signedDA, signedDP];
-    this.rotate += tickCmd[0] * this.timeFactor;
-    this.power += tickCmd[1] * this.timeFactor;
-    let realRotate = ((this._rotate + tickCmd[0]) * Math.PI) / 180;
-    let realForce = this._power + tickCmd[1];
-    let _x = -realForce * Math.sin(realRotate); // 0 degree on the ship is to up
-    let _y = realForce * Math.cos(realRotate);
-    this.applyForce({ x: _x, y: _y });
-  }
 }

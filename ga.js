@@ -4,8 +4,8 @@ class GA {
     this.thrusts = thrusts;
     this.planeSegment = planeSegment;
     this.fitness = [];
-    this.muttation = 0.05;
-    this.elitsm = 0.1;
+    this.muttation = 0.1;
+    this.elitsm = 0.2;
     this.resolved = false;
     this.best = [];
     this.bestShip;
@@ -35,9 +35,9 @@ class GA {
           this.resolved = true;
           this.best = this.thrusts[i];
         }
-        let rotate = 100 * (1 / (1 + absRotate));
+        let rotate = 10000 * (1 / (1 + absRotate * 100));
         let vx = 100 * (20 / (1 + absVx));
-        let vy = 100 * (40 / (1 + absVy));
+        let vy = 1000 * (40 / (1 + absVy));
         let ff = ship.fuel / 10;
         fitness += rotate + vx + vy + ff;
       }

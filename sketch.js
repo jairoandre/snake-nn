@@ -60,7 +60,7 @@ function drawSurface() {
 }
 
 function updateTurn() {
-  if (timeConst % tick === 0) {
+  if (tick % timeConst === 0) {
     turn += 1;
   }
 }
@@ -73,14 +73,15 @@ function setup1() {
   simulation = 0;
   createCanvas(wscl, hscl);
   ships = [new Ship(vec(5000, 2500), vec(-50, 0), 1000, 90, 0)];
-  ships[0].timeFactor = timeFactor;
-  gravity = vec(0, -3.711);
+  cmds = randomThrusts(200);
 }
 
 function draw1() {
   background(0);
-  ships[0].applyForce(gravity);
-  ships[0].update(tick, [-45, 4]);
+  if (tick % timeConst === 0 && turn < cmds.length) {
+    ships[0].executeCmd(cmds[turn]);
+    ships[0].turn = turn;
+  }
   ships[0].draw(true);
   tick += 1;
   updateTurn();
@@ -126,8 +127,10 @@ function myDraw() {
   if (turn >= thrustsN || checkAllDead()) {
     let ga = new GA(ships, thrusts, planeSegment);
     ga.evaluate();
-    console.log(JSON.stringify(ga.best));
-    console.log(`${ga.bestShip.pos.x}, ${ga.bestShip.pos.y}`);
+    //console.log(JSON.stringify(ga.best));
+    let bestShip = ga.bestShip;
+    //console.log(`${bestShip.pos.x}, ${bestShip.pos.y}, ${bestShip.rotate}`);
+    //console.log(JSON.stringify(bestShip.trajectory.map((t)=> { return { x: Math.round(t.x), y: Math.round(t.y) }; })));
     if (ga.resolved) {
       noLoop();
       console.log(ga);
@@ -137,16 +140,16 @@ function myDraw() {
     while (n--) {
       ships[n].reset();
     }
-    turn = 0;
     tick = 0;
+    turn = 0;
     simulation += 1;
   }
   for (let i = 0; i < ships.length; i++) {
     let ship = ships[i];
     let shipCmds = thrusts[i];
     let cmd = shipCmds[turn];
-    ship.applyForce(gravity);
-    ship.update(tick, cmd);
+    ship.executeCmd(cmd);
+    ship.updateStatus(surfacePts);
     ship.draw();
   }
   if (tick % timeConst === 0) {
