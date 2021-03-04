@@ -45,10 +45,10 @@ function* test2() {
   yield "5500 500"
   yield "6200 800"
   yield "6999 600"
-  yield "6500 2600 0 0 1200 0 0";
+  yield "6500 2000 0 0 1200 0 0";
 }
 
-const test1Gen = test2();
+const test1Gen = test1();
 //const test1Gen = test2();
 
 function readline() {
@@ -119,7 +119,7 @@ function distToPlane(p0, line) {
 function randomThrust(pa) {
   let ra = pa ? Math.min(Math.abs(pa) + 15, 90) : 90;
   let a = round(random(-ra, ra));
-  let p = round(random(0,4));
+  let p = round(random([3, 3, 4, 4, 4, 4, 4, 2, 1, 0]));
   return [a, p];
 }
 

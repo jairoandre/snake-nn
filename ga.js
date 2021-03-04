@@ -4,32 +4,42 @@ class GA {
     this.thrusts = thrusts;
     this.planeSegment = planeSegment;
     this.fitness = [];
-    this.muttation = 0.15;
-    this.elitsm = 0.2;
+    this.muttation = 0.05;
+    this.elitsm = 0.1;
     this.resolved = false;
     this.best = [];
+    this.bestShip;
   }
 
   evaluate() {
     let shipLen = this.ships.length;
     let sum = 0;
 
+    let minDist = Infinity;
+
     for (let i = 0; i < shipLen; i++) {
       let ship = this.ships[i];
       let dist = distToPlane(ship.pos, this.planeSegment);
+      if (dist < minDist) {
+        minDist = dist;
+        this.best = this.thrusts[i];
+        this.bestShip = this.ships[i];
+      }
+
       let fitness = 10000 / (1 + dist);
       if (dist <= 40) {
         let absRotate = Math.abs(round(ship.rotate));
-        let absVx = Math.abs(ship.vel.x);
-        let absVy = Math.abs(ship.vel.y);
+        let absVx = Math.max(20, Math.abs(ship.vel.x));
+        let absVy = Math.max(40, Math.abs(ship.vel.y));
         if (absRotate <= 0 && absVx <= 20 && absVy <= 40) {
           this.resolved = true;
           this.best = this.thrusts[i];
         }
-        let rotate = 1000 * (1 / (1 + absRotate));
-        let vx = 10000 * (20 / (1 + absVx));
-        let vy = 10000 * (40 / (1 + absVy));
-        fitness += rotate + vx + vy;
+        let rotate = 100 * (1 / (1 + absRotate));
+        let vx = 100 * (20 / (1 + absVx));
+        let vy = 100 * (40 / (1 + absVy));
+        let ff = ship.fuel / 10;
+        fitness += rotate + vx + vy + ff;
       }
       sum += fitness;
       this.fitness.push({ idx: i, fitness: fitness });
@@ -52,6 +62,7 @@ class GA {
         }).fitness;
       c._fitness = _fitness;
     }
+    //console.log(this.best);
   }
 
   select() {
@@ -82,6 +93,8 @@ class GA {
       c1.push([round(ac1), round(rc1)]);
       c2.push([round(ac2), round(rc2)]);
     }
+    c1.reverse();
+    c2.reverse();
     let mr = random();
     if (this.muttation >= mr) {
       let rIdx = round(random(t1.length - 1));
@@ -89,8 +102,6 @@ class GA {
       rIdx = round(random(t1.length - 1));
       c2[rIdx] = randomThrust(rIdx > 0 ? c2[rIdx - 1][0] : undefined);
     }
-    c1.reverse();
-    c2.reverse();
     return [c1, c2];
   }
 
@@ -109,9 +120,6 @@ class GA {
       let cs = this.crossover(p1, p2);
       let t1 = cs[0];
       let t2 = cs[1];
-      if (t1.length > 150 || t2.length > 150) {
-        debugger;
-      }
       newThrusts.push(cs[0]);
       newThrusts.push(cs[1]);
     }

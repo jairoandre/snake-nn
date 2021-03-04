@@ -1,11 +1,6 @@
 /** global constants **/
 const w = 7000;
 const h = 3000;
-const scl = 0.1;
-const wscl = w * scl;
-const hscl = h * scl;
-let shipsN = 60;
-let thrustsN = 150;
 
 
 function vec(x, y) {
@@ -29,10 +24,22 @@ function createVecFromLine(line) {
 /** global variables **/
 let surfaceN;
 let surfacePts;
+let shipsN = 40;
+let thrustsN = 200;
 let timeConst = 1;
 let timeFactor = 1/timeConst;
-let maxRotation = 15/timeConst;
-let maxThrust = 1/timeConst;
+let ships;
+let gravity;
+let initialPos;
+let tick;
+let turn;
+let planeSegment;
+let thrusts;
+let simulation;
+let scl = 0.2;
+let wscl = w * scl;
+let hscl = h * scl;
+let slider;
 
 function prepareGame() {
   surfaceN = parseInt(readline());
@@ -52,21 +59,37 @@ function drawSurface() {
   endShape();
 }
 
+function updateTurn() {
+  if (timeConst % tick === 0) {
+    turn += 1;
+  }
+}
 
-// PROCESSING STUFF
+let cmds = [];
 
-let ships;
-let gravity;
-let initialPos;
-let tick;
-let turn;
-let planeSegment;
-let thrusts;
-let simulation;
+function setup1() {
+  tick = 0;
+  turn = 0;  
+  simulation = 0;
+  createCanvas(wscl, hscl);
+  ships = [new Ship(vec(5000, 2500), vec(-50, 0), 1000, 90, 0)];
+  ships[0].timeFactor = timeFactor;
+  gravity = vec(0, -3.711);
+}
+
+function draw1() {
+  background(0);
+  ships[0].applyForce(gravity);
+  ships[0].update(tick, [-45, 4]);
+  ships[0].draw(true);
+  tick += 1;
+  updateTurn();
+}
+
 
 function setup() {
   tick = 0;
-  turn = 0;
+  turn = 0;  
   simulation = 0;
   createCanvas(wscl, hscl);
   prepareGame();
@@ -84,6 +107,7 @@ function setup() {
   thrusts = [];
   while(shipsCount--) {
     let ship = new Ship(initialPos, vel, fuel, rotate, power, timeFactor);
+    ship.timeConst = timeConst;
     ships.push(ship);
     thrusts.push(randomThrusts(thrustsN));
   }
@@ -91,6 +115,10 @@ function setup() {
 }
 
 function draw() {
+  myDraw();
+}
+
+function myDraw() {
   background(0);
   text(`Turn: ${turn}`, 10, 20);
   text(`Simulation: ${simulation}`, 10, 40);
@@ -98,22 +126,27 @@ function draw() {
   if (turn >= thrustsN || checkAllDead()) {
     let ga = new GA(ships, thrusts, planeSegment);
     ga.evaluate();
+    console.log(JSON.stringify(ga.best));
+    console.log(`${ga.bestShip.pos.x}, ${ga.bestShip.pos.y}`);
+    if (ga.resolved) {
+      noLoop();
+      console.log(ga);
+    }
     thrusts = ga.nextPopulation();
     let n = ships.length;
     while (n--) {
       ships[n].reset();
     }
-    turn = 1;
+    turn = 0;
     tick = 0;
     simulation += 1;
   }
-  for (let i = 0; i < shipsN; i++) {
+  for (let i = 0; i < ships.length; i++) {
     let ship = ships[i];
-    let shipThrusts = thrusts[i];
-    let thrust = shipThrusts[turn];
+    let shipCmds = thrusts[i];
+    let cmd = shipCmds[turn];
     ship.applyForce(gravity);
-    ship.applyThrust(thrust);
-    ship.update(tick);
+    ship.update(tick, cmd);
     ship.draw();
   }
   if (tick % timeConst === 0) {
