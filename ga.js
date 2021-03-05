@@ -4,8 +4,8 @@ class GA {
     this.thrusts = thrusts;
     this.planeSegment = planeSegment;
     this.fitness = [];
-    this.muttation = 0.1;
-    this.elitsm = 0.2;
+    this.muttation = 0.2;
+    this.elitsm = 0.3;
     this.resolved = false;
     this.best = [];
     this.bestShip;
@@ -80,12 +80,17 @@ class GA {
     }
     c1.reverse();
     c2.reverse();
-    let mr = random();
-    if (this.muttation >= mr) {
-      let rIdx = round(random(t1.length - 1));
-      c1[rIdx] = randomThrust(rIdx > 0 ? c1[rIdx - 1][0] : undefined);
-      rIdx = round(random(t1.length - 1));
-      c2[rIdx] = randomThrust(rIdx > 0 ? c2[rIdx - 1][0] : undefined);
+    for (let i = 0; i < c1.length; i++) {
+      let mr = random();
+      if (this.muttation >= mr) {
+        let rIdx = round(random(t1.length - 1));
+        c1[rIdx] = randomThrust(rIdx > 0 ? c1[rIdx - 1][0] : undefined);
+      }
+      mr = random();
+      if (this.muttation >= mr) {
+        let rIdx = round(random(t1.length - 1));
+        c2[rIdx] = randomThrust(rIdx > 0 ? c2[rIdx - 1][0] : undefined);
+      }
     }
     return [c1, c2];
   }
