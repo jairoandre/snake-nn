@@ -127,13 +127,11 @@ function myDraw() {
   if (turn >= thrustsN || checkAllDead()) {
     let ga = new GA(ships, thrusts, planeSegment);
     ga.evaluate();
-    //console.log(JSON.stringify(ga.best));
+    console.log(JSON.stringify(ga.best));
     let bestShip = ga.bestShip;
-    //console.log(`${bestShip.pos.x}, ${bestShip.pos.y}, ${bestShip.rotate}`);
-    //console.log(JSON.stringify(bestShip.trajectory.map((t)=> { return { x: Math.round(t.x), y: Math.round(t.y) }; })));
+    console.log(`pos: (${Math.round(bestShip.pos.x)}, ${Math.round(bestShip.pos.y)}); rotate: ${bestShip.rotate}; vel: (${Math.round(bestShip.vel.x)}, ${Math.round(bestShip.vel.y)})`);
     if (ga.resolved) {
       noLoop();
-      console.log(ga);
     }
     thrusts = ga.nextPopulation();
     let n = ships.length;

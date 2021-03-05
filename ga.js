@@ -15,31 +15,16 @@ class GA {
     let shipLen = this.ships.length;
     let sum = 0;
 
-    let minDist = Infinity;
+    let bestFitness = -Infinity;
 
     for (let i = 0; i < shipLen; i++) {
       let ship = this.ships[i];
-      let dist = distToPlane(ship.pos, this.planeSegment);
-      if (dist < minDist) {
-        minDist = dist;
+      let fitness = ship.calcFitness(planeSegment);
+      if (fitness > bestFitness) {
+        bestFitness = fitness;
         this.best = this.thrusts[i];
         this.bestShip = this.ships[i];
-      }
-
-      let fitness = 10000 / (1 + dist);
-      if (dist <= 40) {
-        let absRotate = Math.abs(round(ship.rotate));
-        let absVx = Math.max(20, Math.abs(ship.vel.x));
-        let absVy = Math.max(40, Math.abs(ship.vel.y));
-        if (absRotate <= 0 && absVx <= 20 && absVy <= 40) {
-          this.resolved = true;
-          this.best = this.thrusts[i];
-        }
-        let rotate = 10000 * (1 / (1 + absRotate * 100));
-        let vx = 100 * (20 / (1 + absVx));
-        let vy = 1000 * (40 / (1 + absVy));
-        let ff = ship.fuel / 10;
-        fitness += rotate + vx + vy + ff;
+        this.resolved = ship.landed;
       }
       sum += fitness;
       this.fitness.push({ idx: i, fitness: fitness });

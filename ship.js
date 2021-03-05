@@ -7,6 +7,7 @@ class Ship {
     this.rotate = r;
     this.power = power;
     this.crashed = false;
+    this.landed = false;
     this.gravity = gravity ? gravity : { x: 0, y: -3.711 };
     this.timeFactor = timeFactor ? timeFactor : 1;
     this.trajectory = [this.copyVec(this.pos)];
@@ -22,6 +23,41 @@ class Ship {
   copyVec(v) {
     return { x: v.x, y: v.y };
   }
+
+  calcFitness(planeSegment) {
+    let pX = this.pos.x;
+    let rX = planeSegment[0].x;
+    let lX = planeSegment[1].x;
+    let dist2 = distToPlane(this.pos, planeSegment);
+    let fitness = 10 / (1 + dist2 * 0.01);
+    if (pX >= rX && pX <= lX) {
+      fitness += 10;
+    }
+    if (dist2 <= 1600) {
+      let vx = Math.abs(this.vel.x);
+      let vy = Math.abs(this.vel.y);
+      let c = 0;
+      fitness += (10 / (1 + vx * 0.1));
+      if (vx <= 40) {
+        fitness += 10;
+        c++;
+      }
+      fitness += (10 / (1 + vy * 0.1));
+      if (vy <= 20) {
+        fitness += 10;
+        c++;
+      }
+      if (this.rotate === 0) {
+        fitness += 100;
+        c++;
+      }
+      if (c === 3) {
+        this.landed = true;
+      }
+    }
+    return fitness;
+  }
+
 
   reset() {
     this.pos = this.copyVec(this.initial.pos);
