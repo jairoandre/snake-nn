@@ -30,7 +30,7 @@ let tick;
 let turn;
 let planeSegment;
 let simulation;
-let scl = 0.1;
+let scl = 0.2;
 let wscl = w * scl;
 let hscl = h * scl;
 let slider;

@@ -96,38 +96,29 @@ class Ship {
   executeCmds() {
     for (let i = 0; i < cmds.length; i++) {
       let cmd = cmds[i];
+      if (this.status != 0) break;
       this.executeCmd(cmd);
     }
   }
 
   executeCmd(cmd) {
-    if (this.status != 0) return; // dont do nothing
+    if (this.status != 0) return;
     // Put the current position on the history array;
     this.history.push(this.pos.clone());
     this.applyCmd(cmd);
     this.update(cmd);
   }
 
-  updateStatus() {
-    let len = this.history.length;
-    if (len === 0) {
-      this.status = 0;
-      return;
-    }
-    let previous = this.history[len - 1];
-    this.status = hitTheGround(previous, this.pos, surfacePts) ? -1 : 0;
-  }
-
   update(cmd) {
     this.pos.x += 0.5 * (this.vel.x + this.pVel.x);
     this.pos.y += 0.5 * (this.vel.y + this.pVel.y);
     this.fuel -= this.power;
-    let previousPosition = this.history[this.history.length - 1];
+    let prev = this.history[this.history.length - 1];
     if (
       doIntersect(
         this.planeSegment[0],
         this.planeSegment[1],
-        previousPosition,
+        prev,
         this.pos
       )
     ) {
@@ -141,7 +132,7 @@ class Ship {
         }
       }
     }
-    this.updateStatus();
+    this.status = hitTheGround(prev, this.pos, surfacePts) ? -1 : 0;
   }
 
   applyForce(force) {
@@ -256,6 +247,7 @@ class Ship {
     stroke(0, 255, 0);
     beginShape();
     this.history.forEach((v) => vertex(toP5jsX(v.x), toP5jsY(v.y)));
+    vertex(toP5jsX(this.pos.x), toP5jsY(this.pos.y));
     endShape();
   }
 }
