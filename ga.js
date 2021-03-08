@@ -1,30 +1,30 @@
 class GA {
-  constructor(ships, thrusts, planeSegment) {
+  constructor(ships) {
     this.ships = ships;
-    this.thrusts = thrusts;
-    this.planeSegment = planeSegment;
     this.fitness = [];
-    this.muttation = 0.2;
-    this.elitsm = 0.3;
+    this.muttation = 0.01;
+    this.elitsm = 0.2;
     this.resolved = false;
     this.best = [];
     this.bestShip;
+    this.bestFitness = -Infinity;
   }
 
   evaluate() {
     let shipLen = this.ships.length;
     let sum = 0;
 
-    let bestFitness = -Infinity;
-
     for (let i = 0; i < shipLen; i++) {
       let ship = this.ships[i];
-      let fitness = ship.calcFitness(planeSegment);
-      if (fitness > bestFitness) {
-        bestFitness = fitness;
-        this.best = this.thrusts[i];
+      if (ship.status === 1) {
         this.bestShip = this.ships[i];
-        this.resolved = ship.landed;
+        ga.resolved = true;
+        return;
+      }
+      let fitness = ship.calcFitness();
+      if (fitness > this.bestFitness) {
+        this.bestFitness = fitness;
+        this.bestShip = this.ships[i];
       }
       sum += fitness;
       this.fitness.push({ idx: i, fitness: fitness });
@@ -47,20 +47,27 @@ class GA {
         }).fitness;
       c._fitness = _fitness;
     }
-    //console.log(this.best);
   }
 
   select() {
-    let r = random(); // random between 0 and 1;
+    let r = Math.random(); // random between 0 and 1;
     let n = this.fitness.length;
     while (n--) {
       let f = this.fitness[n];
       if (f._fitness >= r) {
         let idx = f.idx;
-        return this.thrusts[idx];
+        return this.ships[idx].cmds;
       }
     }
-    return this.thrusts[0];
+    return this.ships[0].cmds;
+  }
+
+  mutate(cmds, idx) {
+    let mr = Math.random();
+    if (this.muttation >= mr) {
+      let prev = idx > 0 ? cmds[idx - 1] : undefined;
+      cmds[idx] = randomCmd(prev);
+    }
   }
 
   crossover(t1, t2) {
@@ -70,40 +77,32 @@ class GA {
     while (n--) {
       let g1 = t1[n];
       let g2 = t2[n];
-      let rga = random();
-      let ac1 = rga * g1[0] + (1 - rga) * g2[0];
-      let rc1 = rga * g1[1] + (1 - rga) * g2[1];
-      let ac2 = rga * g2[0] + (1 - rga) * g1[0];
-      let rc2 = rga * g2[1] + (1 - rga) * g1[1];
-      c1.push([round(ac1), round(rc1)]);
-      c2.push([round(ac2), round(rc2)]);
+      let rga = Math.random();
+      // Continuous Genetic Algorithm
+      let ac1 = Math.round(rga * g1[0] + (1 - rga) * g2[0]);
+      let rc1 = Math.round(rga * g1[1] + (1 - rga) * g2[1]);
+      let ac2 = Math.round(rga * g2[0] + (1 - rga) * g1[0]);
+      let rc2 = Math.round(rga * g2[1] + (1 - rga) * g1[1]);
+      c1.push([ac1, rc1]);
+      c2.push([ac2, rc2]);
     }
     c1.reverse();
     c2.reverse();
-    for (let i = 0; i < c1.length; i++) {
-      let mr = random();
-      if (this.muttation >= mr) {
-        let rIdx = round(random(t1.length - 1));
-        c1[rIdx] = randomThrust(rIdx > 0 ? c1[rIdx - 1][0] : undefined);
-      }
-      mr = random();
-      if (this.muttation >= mr) {
-        let rIdx = round(random(t1.length - 1));
-        c2[rIdx] = randomThrust(rIdx > 0 ? c2[rIdx - 1][0] : undefined);
-      }
+    for (let idx = 0; idx < c1.length; idx++) {
+      this.mutate(c1, idx);
+      this.mutate(c2, idx);
     }
     return [c1, c2];
   }
 
   nextPopulation() {
     let newThrusts = [];
-
-    let s = round(this.thrusts.length * this.elitsm);
+    let s = Math.round(this.ships.length * this.elitsm);
     for (let i = 0; i < s; i++) {
       let f = this.fitness[i];
-      newThrusts.push(this.thrusts[f.idx]);
+      newThrusts.push(this.ships[f.idx].cmds);
     }
-    let n = round((this.thrusts.length - s) / 2);
+    let n = Math.round((this.ships.length - s) / 2);
     while (n--) {
       let p1 = this.select();
       let p2 = this.select();

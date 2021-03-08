@@ -3,10 +3,6 @@ const w = 7000;
 const h = 3000;
 
 
-function vec(x, y) {
-  return createVector(x, y);
-}
-
 function toP5jsX(codingameX) {
   return codingameX * scl;
 }
@@ -24,22 +20,22 @@ function createVecFromLine(line) {
 /** global variables **/
 let surfaceN;
 let surfacePts;
-let shipsN = 40;
+let surfaceLengths;
+let shipsN = 60;
 let thrustsN = 200;
 let timeConst = 1;
 let timeFactor = 1/timeConst;
 let ships;
-let gravity;
-let initialPos;
 let tick;
 let turn;
 let planeSegment;
-let thrusts;
 let simulation;
-let scl = 0.2;
+let scl = 0.1;
 let wscl = w * scl;
 let hscl = h * scl;
 let slider;
+let ga;
+let totalSurfacePerimeter;
 
 function prepareGame() {
   surfaceN = parseInt(readline());
@@ -49,6 +45,10 @@ function prepareGame() {
     surfacePts.push(createVecFromLine(readline()));
   }
   surfacePts.push(vec(w, 0));
+  surfaceLengths = calcSurfaceLength(surfacePts);
+  totalSurfacePerimeter = surfaceLengths.reduce((a, b) => { return a + b; });
+  console.log(`TOTAL SURFACE PERIMETER: ${totalSurfacePerimeter}`);
+
 }
 
 function drawSurface() {
@@ -67,27 +67,6 @@ function updateTurn() {
 
 let cmds = [];
 
-function setup1() {
-  tick = 0;
-  turn = 0;  
-  simulation = 0;
-  createCanvas(wscl, hscl);
-  ships = [new Ship(vec(5000, 2500), vec(-50, 0), 1000, 90, 0)];
-  cmds = randomThrusts(200);
-}
-
-function draw1() {
-  background(0);
-  if (tick % timeConst === 0 && turn < cmds.length) {
-    ships[0].executeCmd(cmds[turn]);
-    ships[0].turn = turn;
-  }
-  ships[0].draw(true);
-  tick += 1;
-  updateTurn();
-}
-
-
 function setup() {
   tick = 0;
   turn = 0;  
@@ -95,7 +74,6 @@ function setup() {
   createCanvas(wscl, hscl);
   prepareGame();
   planeSegment = getPlaneSegment(surfacePts);
-  //frameRate(60);
   let shipLine = readline();
   let shipValues = shipLine.split` `.map((v) => parseInt(v));
   let initialPos = vec(shipValues[0], shipValues[1]);
@@ -105,38 +83,45 @@ function setup() {
   let power = shipValues[6];
   let shipsCount = shipsN;
   ships = [];
-  thrusts = [];
   while(shipsCount--) {
-    let ship = new Ship(initialPos, vel, fuel, rotate, power, timeFactor);
-    ship.timeConst = timeConst;
+    let ship = new Ship(initialPos, vel, fuel, rotate, power, planeSegment, surfacePts, surfaceLengths, totalSurfacePerimeter);
+    ship.cmds = ship.randomCmds(thrustsN);
     ships.push(ship);
-    thrusts.push(randomThrusts(thrustsN));
   }
-  gravity = vec(0, -3.711);
 }
 
 function draw() {
+  //noLoop();
   myDraw();
 }
+
+let bestFitness = 0;
+let bestShip;
 
 function myDraw() {
   background(0);
   text(`Turn: ${turn}`, 10, 20);
+  //console.log(`Turn: ${turn}`, 10, 20);
   text(`Simulation: ${simulation}`, 10, 40);
+  text(`Best Fitness: ${bestFitness}`, 10, 60);
+  if(bestShip) text(`Best Ship: (x: ${Math.round(bestShip.pos.x)}, y: ${Math.round(bestShip.pos.y)}) - (r: ${Math.round(bestShip.rotate)}, vx: ${Math.round(bestShip.vel.x)}, vy: ${Math.round(bestShip.vel.y)})`, 10, 80)
+  //console.log(`Simulation: ${simulation}`, 10, 40);
   drawSurface();
-  if (turn >= thrustsN || checkAllDead()) {
-    let ga = new GA(ships, thrusts, planeSegment);
+  if (turn >= thrustsN || checkAllShips()) {
+    ga = new GA(ships);
     ga.evaluate();
-    //console.log(JSON.stringify(ga.best));
-    let bestShip = ga.bestShip;
+    bestShip = ga.bestShip.clone();
+    bestFitness = ga.bestFitness;
     //console.log(`pos: (${Math.round(bestShip.pos.x)}, ${Math.round(bestShip.pos.y)}); rotate: ${bestShip.rotate}; vel: (${Math.round(bestShip.vel.x)}, ${Math.round(bestShip.vel.y)})`);
     if (ga.resolved) {
       noLoop();
+      console.log(ga.bestShip.cmds);
     }
-    thrusts = ga.nextPopulation();
+    let thrusts = ga.nextPopulation();
     let n = ships.length;
     while (n--) {
       ships[n].reset();
+      ships[n].cmds = thrusts[n];
     }
     tick = 0;
     turn = 0;
@@ -144,10 +129,9 @@ function myDraw() {
   }
   for (let i = 0; i < ships.length; i++) {
     let ship = ships[i];
-    let shipCmds = thrusts[i];
-    let cmd = shipCmds[turn];
+    let cmds = ship.cmds;
+    let cmd = cmds[turn];
     ship.executeCmd(cmd);
-    ship.updateStatus(surfacePts);
     ship.draw();
   }
   if (tick % timeConst === 0) {
@@ -156,14 +140,12 @@ function myDraw() {
   tick += 1;
 }
 
-function checkAllDead() {
-  let result = true;
+function checkAllShips() {
   for (let i = 0; i < ships.length; i++) {
     let s = ships[i];
-    if (!s.crashed) {
-      result = false;
-      break;
+    if (s.status == 0) {
+      return false;
     }
   }
-  return result;
+  return true;
 }

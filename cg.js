@@ -1,3 +1,18 @@
+class Point {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  clone() {
+    return new Point(this.x, this.y);
+  }
+}
+
+function vec(x, y) {
+  return new Point(x, y);
+}
+
 function* test1() {
   yield "22";
   yield "0 450";
@@ -26,30 +41,29 @@ function* test1() {
 }
 
 function* test2() {
-  yield "18"
-  yield "0 1800"
-  yield "300 1200"
-  yield "1000 1550"
-  yield "2000 1200"
-  yield "2500 1650"
-  yield "3700 220"
-  yield "4700 220"
-  yield "4750 1000"
-  yield "4700 1650"
-  yield "4000 1700"
-  yield "3700 1600"
-  yield "3750 1900"
-  yield "4000 2100"
-  yield "4900 2050"
-  yield "5100 1000"
-  yield "5500 500"
-  yield "6200 800"
-  yield "6999 600"
+  yield "18";
+  yield "0 1800";
+  yield "300 1200";
+  yield "1000 1550";
+  yield "2000 1200";
+  yield "2500 1650";
+  yield "3700 220";
+  yield "4700 220";
+  yield "4750 1000";
+  yield "4700 1650";
+  yield "4000 1700";
+  yield "3700 1600";
+  yield "3750 1900";
+  yield "4000 2100";
+  yield "4900 2050";
+  yield "5100 1000";
+  yield "5500 500";
+  yield "6200 800";
+  yield "6999 600";
   yield "6500 2000 0 0 1200 0 0";
 }
 
 const test1Gen = test1();
-//const test1Gen = test2();
 
 function readline() {
   const r = test1Gen.next();
@@ -87,11 +101,10 @@ function checkInside(point, vertices) {
 
 function getPlaneSegment(vertices) {
   let len = vertices.length;
-
   // Ignore the first and last vertices
-  for (let i = 1, j = 2; i < (len - 2); i = j++) {
+  for (let i = 1; i < len - 2; i++) {
     let curr = vertices[i];
-    let next = vertices[j];
+    let next = vertices[i + 1];
     if (curr.y === next.y) {
       return [curr, next];
     }
@@ -100,37 +113,86 @@ function getPlaneSegment(vertices) {
   return null;
 }
 
-function distToPlane(p0, line) {
-  let p1 = line[0];
-  let p2 = line[1];
-  let dx = 0;
-  let dy = p0.y - p1.y;
-  // point is left outside?
-  if (p0.x < p1.x) {
-    dx = p0.x - p1.x;
-  }
-  // point is right outside?
-  if (p0.x > p2.x) {
-    dx = p2.x - p0.x;
-  }
-  return Math.sqrt((dx * dx) + (dy * dy));
+function lineLength(p1, p2) {
+  let a = p1.x - p2.x;
+  let b = p1.y - p2.y;
+  return Math.sqrt(a * a + b * b);
 }
 
-function randomThrust(pa) {
-  let ra = pa ? Math.min(Math.abs(pa) + 15, 90) : 90;
-  let a = round(random(-ra, ra));
-  let p = round(random([3, 3, 4, 4, 4, 4, 4, 2, 1, 0]));
-  return [a, p];
+function randomCmd(prev) {
+  if (prev) {
+    let a = randIn(-15, 15);
+    let p = randIn(-1, 1);
+    a += prev[0];
+    p += prev[1];
+    return [compress(a, -90, 90), compress(p, 0, 4)];
+  } else {
+    let a = randIn(-90, 90);
+    let p = randIn(0, 4);
+    return [a, p];
+  }
 }
 
-function randomThrusts(len) {
-  let n = len;
-  let result = [];
-  let previous;
-  while(n--) {
-    let t = randomThrust(previous ? previous.a : undefined);
-    result.push(t);
-    previous = t;
+function onSegment(p, q, r) {
+  return (
+    q.x <= Math.max(p.x, r.x) &&
+    q.x >= Math.min(p.x, r.x) &&
+    q.y <= Math.max(p.y, r.y) &&
+    q.y >= Math.min(p.y, r.y)
+  );
+}
+
+function _orientation(p, q, r) {
+  let val = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
+  if (val == 0) return 0;
+  return val > 0 ? 1 : 2;
+}
+
+function doIntersect(p1, q1, p2, q2) {
+  let o1 = _orientation(p1, q1, p2);
+  let o2 = _orientation(p1, q1, q2);
+  let o3 = _orientation(p2, q2, p1);
+  let o4 = _orientation(p2, q2, q1);
+
+  if (o1 != o2 && o3 != o4) return true;
+
+  if (o1 == 0 && onSegment(p1, p2, q1)) return true;
+
+  if (o2 == 0 && onSegment(p1, q2, q1)) return true;
+
+  if (o3 == 0 && onSegment(p2, p1, q2)) return true;
+
+  if (o4 == 0 && onSegment(p2, q1, q2)) return true;
+
+  return false;
+}
+
+function randIn(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function compress(n, min, max) {
+  return Math.min(Math.max(n, min), max);
+}
+
+function hitTheGround(p1, q1, vertices) {
+  let len = vertices.length;
+  for (let i = 1; i < len - 2; i++) {
+    let p2 = vertices[i];
+    let q2 = vertices[i + 1];
+    if (doIntersect(p1, q1, p2, q2)) {
+      return true;
+    }
   }
-  return result;
+  return false;
+}
+
+function calcSurfaceLength(vertices) {
+  let distances = [];
+  for (let i = 1; i < vertices.length - 2; i++) {
+    let p1 = vertices[i];
+    let q1 = vertices[i + 1];
+    distances.push(lineLength(p1, q1));
+  }
+  return distances;
 }
