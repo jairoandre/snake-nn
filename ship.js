@@ -80,7 +80,7 @@ class Ship {
     if (!this.hitLanding) {
       let he = this.heuristicDistance();
       fitness = 100 - (100 * he / this.totalSurfaceLength);
-      let speedMod = 0.5 * Math.max(speed - 50, 0);
+      let speedMod = 0.1 * Math.max(speed - 100, 0);
       fitness -= speedMod;
     } else if (absVx > 20 || vy < -40) {
       let xMod = 0;

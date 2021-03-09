@@ -63,7 +63,7 @@ function* test2() {
   yield "6500 2000 0 0 1200 0 0";
 }
 
-const test1Gen = test2();
+const test1Gen = test1();
 
 function readline() {
   const r = test1Gen.next();
@@ -125,7 +125,7 @@ function randomCmd(prev) {
     let p = randIn(-1, 1);
     a += prev[0];
     p += prev[1];
-    return [compress(a, -90, 90), compress(p, 3, 4)];
+    return [compress(a, -90, 90), compress(p, 2, 4)];
   } else {
     let a = randIn(-90, 90);
     let p = randIn(0, 4);

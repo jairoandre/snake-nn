@@ -2,8 +2,8 @@ class GA {
   constructor(ships) {
     this.ships = ships;
     this.fitness = [];
-    this.muttation = 0.02;
-    this.elitsm = 0.20;
+    this.muttation = 0.01;
+    this.elitsm = 0.1;
     this.resolved = false;
     this.best = [];
     this.bestShip;
@@ -33,15 +33,16 @@ class GA {
     // normalize fitness
     this.fitness.forEach((f) => {
       f.fitness = f.fitness / sum;
+      f._fitness = 0;
     });
     // desc ordernation
     this.fitness.sort((a, b) => b.fitness - a.fitness);
     // set accumulation
-    for (let cIdx = 0; cIdx < shipLen; cIdx++) {
+    for (let cIdx = 0; cIdx < shipLen - 1; cIdx++) {
       let c = this.fitness[cIdx];
       let _fitness =
         c.fitness +
-        this.fitness.slice(cIdx).reduce((acc, v) => {
+        this.fitness.slice(cIdx + 1).reduce((acc, v) => {
           let f = acc.fitness + v.fitness;
           return { fitness: f };
         }).fitness;
@@ -73,8 +74,7 @@ class GA {
   crossover(t1, t2) {
     let c1 = [];
     let c2 = [];
-    let n = t1.length;
-    while (n--) {
+    for(let n = 0; n < t1.length; n++) {
       let g1 = t1[n];
       let g2 = t2[n];
       let rga = Math.random();
@@ -86,8 +86,6 @@ class GA {
       c1.push([ac1, rc1]);
       c2.push([ac2, rc2]);
     }
-    c1.reverse();
-    c2.reverse();
     for (let idx = 0; idx < c1.length; idx++) {
       this.mutate(c1, idx);
       this.mutate(c2, idx);
