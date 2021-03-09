@@ -24,6 +24,8 @@ class Ship {
     this.status = 0; // 0 - flying; 1 - landed; -1 - crashed
     this.cmds = [];
     this.history = [];
+    this.rotates = [];
+    this.hitLanding = false;
     this.initial = {
       pos,
       vel,
@@ -57,6 +59,7 @@ class Ship {
       this.totalSurfaceLength
     );
     clone.status = this.status;
+    clone.hitLanding = this.hitLanding;
     clone.cmds = cmds.map((v) => {
       return v;
     });
@@ -64,19 +67,37 @@ class Ship {
   }
 
   calcFitness() {
-    let len = this.surfacePts.length;
-    if (this.status === 1) {
-      return 10000;
+    if (this.pos.x < 0 || this.pos.y > w || this.pos.y < 0 || this.pos.y > h) {
+      return 1;
     }
-    let prev = this.history[this.history.length - 1];
-    let fitness = 1 / (1 + this.heuristicDistance());
-    if (doIntersect(this.planeSegment[0], this.planeSegment[1], prev, this.pos)) {
-      let vx = Math.abs(this.vel.x);
-      let vy = Math.abs(this.vel.y);
-      let rotate = Math.abs(this.rotate);
-      fitness += vx > 20 ? 1 / vx * 10 : 1;
-      fitness += vy > 40 ? 1 / vy * 20 : 1;
-      fitness += (10 * (90 - rotate)) / 90;
+    let vx = this.vel.x;
+    let absVx = Math.abs(vx);
+    let vy = this.vel.y;
+    let absVy = Math.abs(vy);
+    let speed = Math.sqrt(vx * vx + vy * vy);
+    let absRotate = Math.abs(this.rotate);
+    let fitness = 0;
+    if (!this.hitLanding) {
+      let he = this.heuristicDistance();
+      fitness = 100 - (100 * he / this.totalSurfaceLength);
+      let speedMod = 0.5 * Math.max(speed - 50, 0);
+      fitness -= speedMod;
+    } else if (absVx > 20 || vy < -40) {
+      let xMod = 0;
+      if (absVx > 20) {
+        xMod = (absVx - 20) / 2;
+      }
+      let yMod = 0;
+      if (vy < -40) {
+        yMod = (absVy - 40) / 2;
+      }
+      let rMod = 0;
+      if (absRotate > 15) {
+        rMod = (absRotate - 15) / 2;
+      }
+      fitness = 200 - xMod - yMod - rMod;
+    } else {
+      fitness = 200 + (100 * this.fuel / this.initial.fuel);
     }
     return fitness;
   }
@@ -90,7 +111,9 @@ class Ship {
     this.power = this.initial.power;
     this.status = 0;
     this.history = [];
+    this.rotates = [];
     this.cmds = [];
+    this.hitLanding = false;
   }
 
   executeCmds() {
@@ -104,9 +127,20 @@ class Ship {
   executeCmd(cmd) {
     if (this.status != 0) return;
     // Put the current position on the history array;
+    this.rotates.push(this.rotate);
     this.history.push(this.pos.clone());
     this.applyCmd(cmd);
     this.update(cmd);
+  }
+
+  hitLandingZone() {
+    let prev = this.history[this.history.length - 1];
+    return doIntersect(this.planeSegment[0], this.planeSegment[1], prev, this.pos);
+  }
+
+  hitTheGround() {
+    let prev = this.history[this.history.length - 1];
+    return hitTheGround(prev, this.pos, this.surfacePts);
   }
 
   update(cmd) {
@@ -114,25 +148,18 @@ class Ship {
     this.pos.y += 0.5 * (this.vel.y + this.pVel.y);
     this.fuel -= this.power;
     let prev = this.history[this.history.length - 1];
-    if (
-      doIntersect(
-        this.planeSegment[0],
-        this.planeSegment[1],
-        prev,
-        this.pos
-      )
-    ) {
-      if (Math.abs(this.rotate) <= 15) {
+    if (this.hitLandingZone()) {
+      this.hitLanding = true;
+      let prevRotate = Math.abs(this.rotates[this.rotates.length - 1]);
+      if (prevRotate <= 15) {
         cmd[0] = 0; // force the rotate command to zero
-        cmd[1] = 4;
-        this.rotate = 0;
-        if (Math.abs(this.vel.x) <= 20 && Math.abs(this.vel.y) <= 40) {
+        if (Math.abs(this.vel.x) <= 20 && this.vel.y >= -40) {
           this.status = 1; // landed
           return;
         }
       }
     }
-    this.status = hitTheGround(prev, this.pos, surfacePts) ? -1 : 0;
+    this.status = this.hitTheGround() ? -1 : 0;
   }
 
   applyForce(force) {
@@ -151,6 +178,7 @@ class Ship {
    * @param {Array} cmd
    */
   applyCmd(cmd) {
+
     let r = cmd[0];
     let p = cmd[1];
 
@@ -174,8 +202,10 @@ class Ship {
     let p1 = this.history[this.history.length - 1];
     let q1 = this.pos;
     let idx;
-    let lDist;
-    let rDist;
+    let lxDist;
+    let lyDist;
+    let rxDist;
+    let ryDist;
     for (let i = 1; i < len - 2; i++) {
       let p2 = this.surfacePts[i];
       let q2 = this.surfacePts[i + 1];
@@ -184,8 +214,10 @@ class Ship {
           return 0;
         }
         idx = i;
-        lDist = p1.x - p2.x;
-        rDist = q2.x - p1.x;
+        lxDist = p1.x - p2.x;
+        lyDist = p1.y - p2.y
+        rxDist = q2.x - p1.x;
+        ryDist = q2.y - p1.y;
         break;
       }
     }
@@ -199,24 +231,25 @@ class Ship {
       }
     }
 
-    let bIdx, eIdx;
+    if (!idx) return this.totalSurfaceLength;
 
+    let bIdx, eIdx;
     let sum = 0;
     if (idx > pIdx) {
       bIdx = pIdx;
       eIdx = idx;
-      sum = lDist;
+      sum = Math.sqrt(lxDist * lxDist + lyDist * lyDist);
     } else {
       bIdx = idx;
       eIdx = pIdx;
-      sum = rDist;
+      sum = Math.sqrt(rxDist * rxDist + ryDist * ryDist);
     }
 
     for (let i = bIdx + 1; i < eIdx - 1; i++) {
       sum += this.surfaceLengths[i];
     }
 
-    return sum ? sum : Infinity;
+    return sum;
   }
 
   draw(log) {

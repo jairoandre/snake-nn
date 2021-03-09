@@ -2,12 +2,12 @@ class GA {
   constructor(ships) {
     this.ships = ships;
     this.fitness = [];
-    this.muttation = 0.01;
-    this.elitsm = 0.2;
+    this.muttation = 0.02;
+    this.elitsm = 0.20;
     this.resolved = false;
     this.best = [];
     this.bestShip;
-    this.bestFitness = -Infinity;
+    this.bestFitness = -1;
   }
 
   evaluate() {
@@ -18,7 +18,7 @@ class GA {
       let ship = this.ships[i];
       if (ship.status === 1) {
         this.bestShip = this.ships[i];
-        ga.resolved = true;
+        this.resolved = true;
         return;
       }
       let fitness = ship.calcFitness();

@@ -21,7 +21,7 @@ function createVecFromLine(line) {
 let surfaceN;
 let surfacePts;
 let surfaceLengths;
-let shipsN = 60;
+let shipsN = 80;
 let thrustsN = 200;
 let timeConst = 1;
 let timeFactor = 1/timeConst;
@@ -87,6 +87,39 @@ function setup() {
     let ship = new Ship(initialPos, vel, fuel, rotate, power, planeSegment, surfacePts, surfaceLengths, totalSurfacePerimeter);
     ship.cmds = ship.randomCmds(thrustsN);
     ships.push(ship);
+  }
+  //solve();
+}
+
+function solve() {
+  let ga;
+  let turn = 0;
+  let simulation = 1;
+  while (!ga || !ga.resolved) {
+    if (turn >= thrustsN || checkAllShips()) {
+      console.log('Simulation: ' + simulation);
+      ga = new GA(ships);
+      ga.evaluate();
+      if (ga.resolved) {
+        return ga.bestShip.cmds;
+        break;
+      }
+      let n = ships.length;
+      let thrusts = ga.nextPopulation();
+      while (n--) {
+        ships[n].reset()
+        ships[n].cmds = thrusts[n];
+      }
+      turn = 0;
+      simulation++;
+    }
+    for (let i = 0; i < ships.length; i++) {
+      let ship = ships[i];
+      let cmds = ship.cmds;
+      let cmd = cmds[turn];
+      ship.executeCmd(cmd);
+    }
+    turn++;
   }
 }
 
