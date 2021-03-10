@@ -1,79 +1,37 @@
 /** global constants **/
-const w = 7000;
-const h = 3000;
+const WIDTH = 7000;
+const HEIGHT = 3000;
+const SCALE = 0.2;
+const P5_WIDTH = WIDTH * SCALE;
+const P5_HEIGHT = HEIGHT * SCALE;
 
-
-function toP5jsX(codingameX) {
-  return codingameX * scl;
-}
-
-function toP5jsY(codingameY) {
-  let yscl = hscl - codingameY * scl;
-  return yscl;
-}
-
-function createVecFromLine(line) {
-  const xy = line.split` `.map((v) => parseInt(v));
-  return vec(xy[0], xy[1]);
-}
+const TOTAL_SHIPS = 80;
+const TOTAL_CMDS = 200;
 
 /** global variables **/
-let surfaceN;
-let surfacePts;
-let surfaceLengths;
-let shipsN = 80;
-let thrustsN = 200;
-let timeConst = 1;
-let timeFactor = 1/timeConst;
-let ships;
-let tick;
+let surface;
 let turn;
-let planeSegment;
 let simulation;
-let scl = 0.2;
-let wscl = w * scl;
-let hscl = h * scl;
-let slider;
+let ships = [];
+let cmds = [];
 let ga;
-let totalSurfacePerimeter;
+let bestFitness = 0;
+let bestShip;
 
 function prepareGame() {
-  surfaceN = parseInt(readline());
-  let n = surfaceN;
-  surfacePts = [vec(0, 0)];
+  let n = +readline();
+  let vertices = [];
   while (n--) {
-    surfacePts.push(createVecFromLine(readline()));
+    vertices.push(createVecFromLine(readline()));
   }
-  surfacePts.push(vec(w, 0));
-  surfaceLengths = calcSurfaceLength(surfacePts);
-  totalSurfacePerimeter = surfaceLengths.reduce((a, b) => { return a + b; });
-  console.log(`TOTAL SURFACE PERIMETER: ${totalSurfacePerimeter}`);
-
+  surface = new Surface(vertices);
 }
-
-function drawSurface() {
-  fill(255, 0, 0);
-  stroke(255, 0, 0);
-  beginShape();
-  surfacePts.forEach((v) => vertex(toP5jsX(v.x), toP5jsY(v.y)));
-  endShape();
-}
-
-function updateTurn() {
-  if (tick % timeConst === 0) {
-    turn += 1;
-  }
-}
-
-let cmds = [];
 
 function setup() {
-  tick = 0;
   turn = 0;  
   simulation = 0;
-  createCanvas(wscl, hscl);
+  createCanvas(P5_WIDTH, P5_HEIGHT);
   prepareGame();
-  planeSegment = getPlaneSegment(surfacePts);
   let shipLine = readline();
   let shipValues = shipLine.split` `.map((v) => parseInt(v));
   let initialPos = vec(shipValues[0], shipValues[1]);
@@ -81,14 +39,12 @@ function setup() {
   let fuel = shipValues[4];
   let rotate = shipValues[5];
   let power = shipValues[6];
-  let shipsCount = shipsN;
-  ships = [];
+  let shipsCount = TOTAL_SHIPS;
   while(shipsCount--) {
-    let ship = new Ship(initialPos, vel, fuel, rotate, power, planeSegment, surfacePts, surfaceLengths, totalSurfacePerimeter);
-    ship.cmds = ship.randomCmds(thrustsN);
+    let ship = new Ship(initialPos, vel, fuel, rotate, power, surface);
+    ship.cmds = ship.randomCmds(TOTAL_CMDS);
     ships.push(ship);
   }
-  //solve();
 }
 
 function solve() {
@@ -96,13 +52,12 @@ function solve() {
   let turn = 0;
   let simulation = 1;
   while (!ga || !ga.resolved) {
-    if (turn >= thrustsN || checkAllShips()) {
+    if (turn >= TOTAL_CMDS || checkAllShips()) {
       console.log('Simulation: ' + simulation);
       ga = new GA(ships);
       ga.evaluate();
       if (ga.resolved) {
         return ga.bestShip.cmds;
-        break;
       }
       let n = ships.length;
       let thrusts = ga.nextPopulation();
@@ -124,28 +79,17 @@ function solve() {
 }
 
 function draw() {
-  //noLoop();
-  myDraw();
-}
-
-let bestFitness = 0;
-let bestShip;
-
-function myDraw() {
   background(0);
   text(`Turn: ${turn}`, 10, 20);
-  //console.log(`Turn: ${turn}`, 10, 20);
   text(`Simulation: ${simulation}`, 10, 40);
   text(`Best Fitness: ${bestFitness}`, 10, 60);
   if(bestShip) text(`Best Ship: (x: ${Math.round(bestShip.pos.x)}, y: ${Math.round(bestShip.pos.y)}) - (r: ${Math.round(bestShip.rotate)}, vx: ${Math.round(bestShip.vel.x)}, vy: ${Math.round(bestShip.vel.y)})`, 10, 80)
-  //console.log(`Simulation: ${simulation}`, 10, 40);
-  drawSurface();
-  if (turn >= thrustsN || checkAllShips()) {
+  drawSurface(surface);
+  if (turn >= TOTAL_CMDS || checkAllShips()) {
     ga = new GA(ships);
     ga.evaluate();
     bestShip = ga.bestShip.clone();
     bestFitness = ga.bestFitness;
-    //console.log(`pos: (${Math.round(bestShip.pos.x)}, ${Math.round(bestShip.pos.y)}); rotate: ${bestShip.rotate}; vel: (${Math.round(bestShip.vel.x)}, ${Math.round(bestShip.vel.y)})`);
     if (ga.resolved) {
       noLoop();
       console.log(ga.bestShip.cmds);
@@ -156,7 +100,6 @@ function myDraw() {
       ships[n].reset();
       ships[n].cmds = thrusts[n];
     }
-    tick = 0;
     turn = 0;
     simulation += 1;
   }
@@ -165,12 +108,9 @@ function myDraw() {
     let cmds = ship.cmds;
     let cmd = cmds[turn];
     ship.executeCmd(cmd);
-    ship.draw();
+    drawShip(ship);
   }
-  if (tick % timeConst === 0) {
-    turn += 1;
-  }
-  tick += 1;
+  turn += 1;
 }
 
 function checkAllShips() {
