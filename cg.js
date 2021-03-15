@@ -66,14 +66,16 @@ function compress(n, min, max) {
   return Math.min(Math.max(n, min), max);
 }
 
-const MAX_ROTATE = 60;
+const MAX_ROTATE = 20;
 const MIN_POWER = 0;
 const MAX_POWER = 4;
+
+const MAX_STEP_ROTATE = 15;
 
 const CHANGE_ANGLE_PROB = 0.05;
 const CHANGE_ANGLE_AGAIN_PROB = 0.85;
 
-const CHOOSE_LOWER_THRUST_PROB = 0.0001;
+const CHOOSE_LOWER_THRUST_PROB = 0.1;
 
 function randFrom(arr) {
   return arr[Math.floor(Math.random() * (arr.length - 1))];
@@ -82,7 +84,9 @@ function randFrom(arr) {
 function randomPower(prev) {
   let p = (prev ? prev : 0) + randIn(-1, 1);
   let r = Math.random();
-  return compress(p, (CHOOSE_LOWER_THRUST_PROB > r ? MIN_POWER : 3), MAX_POWER);
+  let minPower = CHOOSE_LOWER_THRUST_PROB > r ? MIN_POWER :
+    (CHOOSE_LOWER_THRUST_PROB * 2 > r ? MIN_POWER + 1 : 3);
+  return compress(p, minPower, MAX_POWER);
 }
 
 function randomAngle(prev, state) {
@@ -91,7 +95,7 @@ function randomAngle(prev, state) {
   state.rotate = false;
   if ((hasRotated && CHANGE_ANGLE_AGAIN_PROB >= Math.random()) || CHANGE_ANGLE_PROB >= Math.random()) {
       state.rotate = true;
-      angleChange = randIn(-15, 15);
+      angleChange = randIn(-MAX_STEP_ROTATE, MAX_STEP_ROTATE);
   }
   return compress(prev + angleChange, -MAX_ROTATE, MAX_ROTATE);
 
