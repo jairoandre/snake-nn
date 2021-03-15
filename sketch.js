@@ -5,8 +5,8 @@ const SCALE = 0.2;
 const P5_WIDTH = WIDTH * SCALE;
 const P5_HEIGHT = HEIGHT * SCALE;
 
-const TOTAL_SHIPS = 80;
-const TOTAL_CMDS = 200;
+const TOTAL_SHIPS = 60;
+const TOTAL_CMDS = 400;
 
 /** global variables **/
 let surface;
@@ -17,6 +17,7 @@ let cmds = [];
 let ga;
 let bestFitness = 0;
 let bestShip;
+let updateShips = true;
 
 function prepareGame() {
   let n = +readline();
@@ -25,6 +26,20 @@ function prepareGame() {
     vertices.push(createVecFromLine(readline()));
   }
   surface = new Surface(vertices);
+}
+
+function checkAllShips() {
+  for (let i = 0; i < ships.length; i++) {
+    let s = ships[i];
+    if (s.status == 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function toggleShipUpdates() {
+  updateShips = !updateShips;
 }
 
 function setup() {
@@ -45,40 +60,42 @@ function setup() {
     ship.cmds = ship.randomCmds(TOTAL_CMDS);
     ships.push(ship);
   }
+  //solve();
 }
 
 function solve() {
-  let ga;
-  let turn = 0;
-  let simulation = 1;
-  while (!ga || !ga.resolved) {
-    if (turn >= TOTAL_CMDS || checkAllShips()) {
-      console.log('Simulation: ' + simulation);
-      ga = new GA(ships);
-      ga.evaluate();
-      if (ga.resolved) {
-        return ga.bestShip.cmds;
+  let solveTurn = 0;
+  let simulations = 1;
+  while (true) {
+    if (solveTurn >= TOTAL_CMDS || checkAllShips()) {
+      let solveGA = new GA(ships);
+      solveGA.evaluate();
+      if (solveGA.resolved) {
+        select('#solution').html(JSON.stringify(solveGA.bestShip.cmds));
+        break;
       }
+      let newCmds = solveGA.nextPopulation();
       let n = ships.length;
-      let thrusts = ga.nextPopulation();
       while (n--) {
-        ships[n].reset()
-        ships[n].cmds = thrusts[n];
+        ships[n].reset();
+        ships[n].cmds = newCmds[n];
       }
-      turn = 0;
-      simulation++;
+      select('#solution').html(`Simulations: ${simulations++}`);
+      solveTurn = 0;
     }
-    for (let i = 0; i < ships.length; i++) {
-      let ship = ships[i];
-      let cmds = ship.cmds;
-      let cmd = cmds[turn];
-      ship.executeCmd(cmd);
-    }
-    turn++;
+    executeShipCmds(solveTurn);
+    select('#solution').html(`Turn: ${solveTurn}`);
+    solveTurn += 1;
   }
 }
 
+
 function draw() {
+  myDraw();
+  //noLoop();
+}
+
+function myDraw() {
   background(0);
   text(`Turn: ${turn}`, 10, 20);
   text(`Simulation: ${simulation}`, 10, 40);
@@ -92,7 +109,7 @@ function draw() {
     bestFitness = ga.bestFitness;
     if (ga.resolved) {
       noLoop();
-      console.log(ga.bestShip.cmds);
+      select('#solution').html(JSON.stringify(ga.bestShip.cmds));
     }
     let thrusts = ga.nextPopulation();
     let n = ships.length;
@@ -103,22 +120,20 @@ function draw() {
     turn = 0;
     simulation += 1;
   }
-  for (let i = 0; i < ships.length; i++) {
-    let ship = ships[i];
-    let cmds = ship.cmds;
-    let cmd = cmds[turn];
-    ship.executeCmd(cmd);
-    drawShip(ship);
+  executeShipCmds(turn, true);
+  if (updateShips) {
+    turn += 1;
   }
-  turn += 1;
 }
 
-function checkAllShips() {
+function executeShipCmds(nTurn, dShip) {
   for (let i = 0; i < ships.length; i++) {
-    let s = ships[i];
-    if (s.status == 0) {
-      return false;
+    let ship = ships[i];
+    if (updateShips) {
+      let cmds = ship.cmds;
+      let cmd = cmds[nTurn];
+      ship.executeCmd(cmd);
+      if (dShip) drawShip(ship);
     }
   }
-  return true;
 }

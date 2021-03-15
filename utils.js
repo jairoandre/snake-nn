@@ -56,7 +56,7 @@ function* test2() {
   yield "6500 2000 0 0 1200 0 0";
 }
 
-const testGen = test2();
+const testGen = test1();
 
 function readline() {
   const r = testGen.next();
@@ -64,25 +64,29 @@ function readline() {
   else return r.value;
 }
 
-function drawShip(ship, log) {
-    if (log) {
-      text(`H Speed: ${Math.floor(ship.vel.x)}`, 10, 20);
-      text(`V Speed: ${Math.floor(ship.vel.y)}`, 10, 40);
+const OFFSET_INFO = 400;
+
+function drawShip(ship) {
+    //let d = dist(toP5jsX(ship.pos.x), toP5jsY(ship.pos.y), mouseX, mouseY);
+    //if (d < 10) {
+    if (false) {
+      text(`H Speed: ${Math.floor(ship.vel.x)}`, OFFSET_INFO, 20);
+      text(`V Speed: ${Math.floor(ship.vel.y)}`, OFFSET_INFO, 40);
       text(
         `Position: (${Math.floor(ship.pos.x)}, ${Math.floor(ship.pos.y)})`,
-        10,
+        OFFSET_INFO,
         60
       );
-      text(`Fuel: ${Math.floor(ship.fuel)}`, 10, 80);
-      text(`Angle: ${Math.floor(ship.rotate)}`, 10, 100);
-      text(`Turn: ${ship.turn}`, 10, 120);
+      text(`Fuel: ${Math.floor(ship.fuel)}`, OFFSET_INFO, 80);
+      text(`Angle: ${Math.floor(ship.rotate)}`, OFFSET_INFO, 100);
+      text(`Fitness: ${ship.fitness()}`, OFFSET_INFO, 120);
     }
     noFill();
     stroke(255, 255, 255);
     let _x = toP5jsX(ship.pos.x);
     let _y = toP5jsY(ship.pos.y);
     let _rotate = ship.rotate * -1;
-    circle(_x, _y, 20);
+    let c = circle(_x, _y, 20);
     stroke(255, 0, 0);
     push();
     translate(_x, _y);

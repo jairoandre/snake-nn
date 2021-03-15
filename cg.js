@@ -56,26 +56,52 @@ function doIntersect(p1, q1, p2, q2) {
   return false;
 }
 
+
 function randIn(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  let r = Math.random();
+  return Math.floor(r * (max - min + 1)) + min;
 }
 
 function compress(n, min, max) {
   return Math.min(Math.max(n, min), max);
 }
 
-function randomCmd(prev) {
-  if (prev) {
-    let a = randIn(-15, 15);
-    let p = randIn(-1, 1);
-    a += prev[0];
-    p += prev[1];
-    return [compress(a, -90, 90), compress(p, 0, 4)];
-  } else {
-    let a = randIn(-90, 90);
-    let p = randIn(0, 4);
-    return [a, p];
+const MAX_ROTATE = 60;
+const MIN_POWER = 0;
+const MAX_POWER = 4;
+
+const CHANGE_ANGLE_PROB = 0.05;
+const CHANGE_ANGLE_AGAIN_PROB = 0.85;
+
+const CHOOSE_LOWER_THRUST_PROB = 0.0001;
+
+function randFrom(arr) {
+  return arr[Math.floor(Math.random() * (arr.length - 1))];
+}
+
+function randomPower(prev) {
+  let p = (prev ? prev : 0) + randIn(-1, 1);
+  let r = Math.random();
+  return compress(p, (CHOOSE_LOWER_THRUST_PROB > r ? MIN_POWER : 3), MAX_POWER);
+}
+
+function randomAngle(prev, state) {
+  let angleChange = 0;
+  let hasRotated = state.rotate;
+  state.rotate = false;
+  if ((hasRotated && CHANGE_ANGLE_AGAIN_PROB >= Math.random()) || CHANGE_ANGLE_PROB >= Math.random()) {
+      state.rotate = true;
+      angleChange = randIn(-15, 15);
   }
+  return compress(prev + angleChange, -MAX_ROTATE, MAX_ROTATE);
+
+}
+
+function randomCmd(prev, state) {
+  let prevA = prev ? prev[0] : 0;
+  let prevP = prev ? prev[1] : 0;
+  let stateP = state ? state : { rotate: false };
+  return [randomAngle(prevA, stateP), randomPower(prevP)];
 }
 
 /**
@@ -143,8 +169,9 @@ class Ship {
   randomCmds(n) {
     let prev = [this.rotate, this.power];
     let result = [];
+    let state = { rotate: true };
     for (let i = 0; i < n; i++) {
-      let curr = randomCmd(prev);
+      let curr = randomCmd(prev, state);
       result.push(curr);
       prev = curr;
     }
@@ -171,9 +198,9 @@ class Ship {
     if (
       this.status == 0 ||
       this.pos.x < 0 ||
-      this.pos.y > WIDTH ||
+      this.pos.x > 6999 ||
       this.pos.y < 0 ||
-      this.pos.y > HEIGHT
+      this.pos.y > 2999 
     ) {
       return 1;
     }
@@ -188,25 +215,25 @@ class Ship {
     if (this.status == -1) {
       // hit the ground, but not the plane segment
       let he = this.heuristicDistance();
-      fitness = 100 - (100 * he) / this.surface.totalLength;
+      fitness = 100 - (100 * he * 1.5) / this.surface.totalLength;
       let speedMod = 0.1 * Math.max(speed - 100, 0);
       fitness -= speedMod;
     } else if (absVx > 20 || vy < -40) {
       let xMod = 0;
       if (absVx > 20) {
-        xMod = (absVx - 20) / 2;
+        xMod = (absVx - 20) * 1.5;
       }
       let yMod = 0;
       if (vy < -40) {
-        yMod = (absVy - 40) / 2;
+        yMod = (absVy - 40) * 1.5;
       }
       let rMod = 0;
       if (absRotate > 15) {
-        rMod = (absRotate - 15) / 2;
+        rMod = (absRotate - 15) * 1.5;
       }
-      fitness = 200 - xMod - yMod - rMod;
+      fitness = 500 - xMod - yMod - rMod;
     } else {
-      fitness = 200 + (100 * this.fuel) / this.initial.fuel;
+      fitness = 1000 + (500 * this.fuel) / this.initial.fuel;
     }
     return fitness;
   }
@@ -243,18 +270,25 @@ class Ship {
   }
 
   update(cmd) {
-    this.pos.x += 0.5 * (this.vel.x + this.pVel.x);
-    this.pos.y += 0.5 * (this.vel.y + this.pVel.y);
+    let instVX = 0.5 * (this.vel.x + this.pVel.x);
+    let instVY = 0.5 * (this.vel.y + this.pVel.y);
+
+    this.pos.x += instVX;
+    this.pos.y += instVY;
+
     this.fuel -= this.power;
     let prev = this.history[this.history.length - 1];
     let hitIdx = this.surface.hitTheGround(prev, this.pos);
     this.status = hitIdx >= 0 ? (hitIdx == this.surface.planeIdx ? 1 : -1) : 0;
+    if (this.pos.x < 0 || this.pos.x > 6999 || this.pos.y < 0 || this.pos.y > 2999) {
+      this.status = -2;
+    }
     if (this.status == 1) {
       // hit the land zone
       let prevRotate = Math.abs(this.rotates[this.rotates.length - 1]);
       if (prevRotate <= 15) {
         cmd[0] = 0; // force the rotate command to zero
-        if (Math.abs(this.vel.x) <= 20 && this.vel.y >= -40) {
+        if (Math.abs(instVX) < 20 && instVY > -40) {
           this.landed = true;
         }
       }
@@ -327,7 +361,7 @@ class GA {
     this.ships = ships;
     this.fitness = [];
     this.muttation = 0.01;
-    this.elitsm = 0.1;
+    this.elitsm = 0.2;
     this.resolved = false;
     this.best = [];
     this.bestShip;
@@ -343,7 +377,6 @@ class GA {
       if (ship.landed) {
         this.bestShip = this.ships[i];
         this.resolved = true;
-        return;
       }
       let fitness = ship.fitness();
       if (fitness > this.bestFitness) {
@@ -357,7 +390,7 @@ class GA {
     // normalize fitness
     this.fitness.forEach((f) => {
       f.fitness = f.fitness / sum;
-      f._fitness = 0;
+      f._fitness = f.fitness;
     });
     // desc ordernation
     this.fitness.sort((a, b) => b.fitness - a.fitness);
@@ -391,7 +424,14 @@ class GA {
     let mr = Math.random();
     if (this.muttation >= mr) {
       let prev = idx > 0 ? cmds[idx - 1] : undefined;
-      cmds[idx] = randomCmd(prev);
+      let newCmd = randomCmd(prev, { rotate: true });
+      cmds[idx] = newCmd;
+    }
+  }
+
+  mutateCmds(cmds) {
+    for (let idx = 0; idx < cmds.length; idx++) {
+      this.mutate(cmds, idx);
     }
   }
 
@@ -404,16 +444,14 @@ class GA {
       let rga = Math.random();
       // Continuous Genetic Algorithm
       let ac1 = Math.round(rga * g1[0] + (1 - rga) * g2[0]);
-      let rc1 = Math.round(rga * g1[1] + (1 - rga) * g2[1]);
       let ac2 = Math.round(rga * g2[0] + (1 - rga) * g1[0]);
+      let rc1 = Math.round(rga * g1[1] + (1 - rga) * g2[1]);
       let rc2 = Math.round(rga * g2[1] + (1 - rga) * g1[1]);
       c1.push([ac1, rc1]);
       c2.push([ac2, rc2]);
     }
-    for (let idx = 0; idx < c1.length; idx++) {
-      this.mutate(c1, idx);
-      this.mutate(c2, idx);
-    }
+    this.mutateCmds(c1);
+    this.mutateCmds(c2);
     return [c1, c2];
   }
 
@@ -422,15 +460,14 @@ class GA {
     let s = Math.round(this.ships.length * this.elitsm);
     for (let i = 0; i < s; i++) {
       let f = this.fitness[i];
-      newThrusts.push(this.ships[f.idx].cmds);
+      let newCmds = this.ships[f.idx].cmds;
+      newThrusts.push(newCmds);
     }
     let n = Math.round((this.ships.length - s) / 2);
     while (n--) {
       let p1 = this.select();
       let p2 = this.select();
       let cs = this.crossover(p1, p2);
-      let t1 = cs[0];
-      let t2 = cs[1];
       newThrusts.push(cs[0]);
       newThrusts.push(cs[1]);
     }
