@@ -66,7 +66,7 @@ function compress(n, min, max) {
   return Math.min(Math.max(n, min), max);
 }
 
-const MAX_ROTATE = 20;
+const MAX_ROTATE = 90;
 const MIN_POWER = 0;
 const MAX_POWER = 4;
 
@@ -175,7 +175,9 @@ class Ship {
     let result = [];
     let state = { rotate: true };
     for (let i = 0; i < n; i++) {
-      let curr = randomCmd(prev, state);
+      let curr = [2, 4];
+      if (i > 60) 
+        curr = randomCmd(prev, state);
       result.push(curr);
       prev = curr;
     }
