@@ -56,7 +56,7 @@ function* test2() {
   yield "6500 2000 0 0 1200 0 0";
 }
 
-const testGen = test1();
+const testGen = test2();
 
 function readline() {
   const r = testGen.next();

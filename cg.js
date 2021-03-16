@@ -174,8 +174,9 @@ class Ship {
     let prev = [this.rotate, this.power];
     let result = [];
     let state = { rotate: true };
+    let initPos = [[10, 4], [-10, 4]];
+    let curr = initPos[Math.random() > 0.5 ? 0 : 1];
     for (let i = 0; i < n; i++) {
-      let curr = [2, 4];
       if (i > 60) 
         curr = randomCmd(prev, state);
       result.push(curr);
